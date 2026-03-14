@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
-  comUnit;
+  ComCtrls, Grids, Spin, comUnit, Types;
 
 type
 
@@ -78,12 +78,31 @@ type
     BStart: TButton;
     BExecute: TButton;
     BInitiatilize: TButton;
+    ButtonAdicionarStock: TButton;
+    ButtonAdicionarOrdem: TButton;
+    cbPos: TComboBox;
+    cbPecaStock: TComboBox;
+    cbTipoOrdem: TComboBox;
+    cbPecaPlano: TComboBox;
+    GroupBox1: TGroupBox;
+    GroupBox2: TGroupBox;
     Memo1: TMemo;
+    PageControl1: TPageControl;
+    seQtd: TSpinEdit;
+    GridStock: TStringGrid;
+    GridPlano: TStringGrid;
+    StringGrid3: TStringGrid;
+    TabSheet1: TTabSheet;
+    TabSheet2: TTabSheet;
     Timer1: TTimer;
     procedure BExecuteClick(Sender: TObject);
     procedure BInitiatilizeClick(Sender: TObject);
     procedure BStartClick(Sender: TObject);
+    procedure ButtonAdicionarOrdemClick(Sender: TObject);
+    procedure ButtonAdicionarStockClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure TabSheet1ContextPopup(Sender: TObject; MousePos: TPoint;
+      var Handled: Boolean);
     procedure Timer1Timer(Sender: TObject);
   private
 
@@ -213,7 +232,7 @@ end;
 procedure TFormDispatcher.BStartClick(Sender: TObject);
 var
     result           : integer;
-    production_order : TProduction_Order;
+    // production_order : TProduction_Order; // Variável comentada pois só era usada no hardcode
 begin
   // ******************************************
   // Query to DB and converts data to structures
@@ -221,8 +240,7 @@ begin
   // *******************************************
 
 
-
-
+  { ===== INÍCIO DO HARDCODE (Comentado) =====
   // ******************************************
   // Simulating the result of the SQL query:
 
@@ -302,6 +320,8 @@ begin
   Production_Orders[4]            := production_order;
   *)
   // ******************************************
+  ===== FIM DO HARDCODE ===== }
+
 
   // for Scheduling
   idx_Task_Executing := 0;
@@ -318,10 +338,104 @@ begin
    end;
 end;
 
+procedure TFormDispatcher.ButtonAdicionarOrdemClick(Sender: TObject);
+var
+  linha, id_peca: integer;
+  tipoOrdem, peca: string;
+begin
+  tipoOrdem := cbTipoOrdem.Text;
+  peca := cbPecaPlano.Text;
+
+  // Extrai apenas o primeiro caractere do texto (ex: tira o "1" de "1 - Matéria-Prima")
+  id_peca := StrToInt(Copy(peca, 1, 1));
+
+  // A TUA NOVA REGRA DE SEGURANÇA:
+  // Se for Produção E a peça for 1, 2 ou 3 (Matérias-Primas)...
+  if (tipoOrdem = 'Produção') and (id_peca <= 3) then
+  begin
+    ShowMessage('Atenção: Não é possível fabricar Matéria-Prima! Por favor, escolha uma Base ou Tampa.');
+    Exit; // Pára imediatamente e não adiciona à grelha
+  end;
+
+  // Se passou na verificação de segurança, adiciona a linha normalmente
+  linha := GridPlano.RowCount;
+  GridPlano.RowCount := linha + 1;
+
+  GridPlano.Cells[0, linha] := tipoOrdem;
+  GridPlano.Cells[1, linha] := peca;
+  GridPlano.Cells[2, linha] := IntToStr(seQtd.Value);
+end;
+
+procedure TFormDispatcher.ButtonAdicionarStockClick(Sender: TObject);
+var
+  linha, i: integer;
+  posicaoEscolhida: string;
+  jaExiste: boolean;
+begin
+  posicaoEscolhida := cbPos.Text;
+  jaExiste := False;
+
+  // 1. Verificar se a posição já está ocupada na tabela
+  // Começamos em 1 para ignorar o cabeçalho da tabela
+  for i := 1 to GridStock.RowCount - 1 do
+  begin
+    if GridStock.Cells[0, i] = posicaoEscolhida then
+    begin
+      jaExiste := True;
+      Break; // Já encontrámos, não vale a pena procurar mais
+    end;
+  end;
+
+  // 2. Se já existe, mostramos um erro e paramos por aqui
+  if jaExiste then
+  begin
+    ShowMessage('Atenção: A Posição ' + posicaoEscolhida + ' já está ocupada no plano!');
+    Exit; // O "Exit" faz o código parar e não adiciona a linha
+  end;
+
+  // 3. Se não existe, adicionamos a linha normalmente
+  linha := GridStock.RowCount;
+  GridStock.RowCount := linha + 1;
+
+  GridStock.Cells[0, linha] := posicaoEscolhida;
+  GridStock.Cells[1, linha] := cbPecaStock.Text;
+end;
+
 procedure TFormDispatcher.FormCreate(Sender: TObject);
 begin
   SetLength(ShopTasks, 0);
   idx_Task_Executing := 0;
+
+  // Formatar a Tabela de Stock
+  GridStock.ColCount := 2; // 2 Colunas
+  GridStock.RowCount := 1; // Só o cabeçalho para começar
+  GridStock.Cells[0, 0] := 'Posição';
+  GridStock.Cells[1, 0] := 'Peça';
+  GridStock.ColWidths[0] := 60;
+  GridStock.ColWidths[1] := 180;
+
+  // Formatar a Tabela do Plano de Produção
+  GridPlano.ColCount := 3; // 3 Colunas
+  GridPlano.RowCount := 1;
+  GridPlano.Cells[0, 0] := 'Tipo Ordem';
+  GridPlano.Cells[1, 0] := 'Peça';
+  GridPlano.Cells[2, 0] := 'Qtd';
+  GridPlano.ColWidths[0] := 90;
+  GridPlano.ColWidths[1] := 160;
+  GridPlano.ColWidths[2] := 50;
+
+  // Por defeito, selecionar a primeira opção das ComboBoxes
+  cbPos.ItemIndex := 0;
+  cbPecaStock.ItemIndex := 0;
+  cbTipoOrdem.ItemIndex := 0;
+  cbPecaPlano.ItemIndex := 0;
+  seQtd.Value := 1;
+end;
+
+procedure TFormDispatcher.TabSheet1ContextPopup(Sender: TObject;
+  MousePos: TPoint; var Handled: Boolean);
+begin
+
 end;
 
 procedure TFormDispatcher.Timer1Timer(Sender: TObject);
@@ -331,7 +445,7 @@ end;
 
 
 
-
+(* Hard Code
 //Initialization of the MES /week. This procedure run only once per week
 procedure TFormDispatcher.BInitiatilizeClick(Sender: TObject);
 var
@@ -380,7 +494,76 @@ begin
   // Starting Dispatcher Iterations over time
   Timer1.Enabled:= true;
 end;
+*)
 
+procedure TFormDispatcher.BInitiatilizeClick(Sender: TObject);
+var
+  i, pos, part, r: integer;
+  tipoOrdemStr: string;
+  ordem: TProduction_Order;
+begin
+  // 1. PREPARAR O ARMAZÉM VIRTUAL (Limpar tudo)
+  SetLength(WAREHOUSE_Parts, 55);
+  WAREHOUSE_Parts[0] := -1; // Posição 0 não existe
+  for i := 1 to Length(WAREHOUSE_Parts)-1 do
+    WAREHOUSE_Parts[i] := 0; // Fica tudo a zeros
+
+  // 2. LER A TABELA DE STOCK E INICIALIZAR A FÁBRICA
+  Memo1.Append('A carregar o Stock Inicial...');
+
+  // Percorre as linhas do GridStock (começa no 1 para saltar o cabeçalho)
+  for i := 1 to GridStock.RowCount - 1 do
+  begin
+    // Se a linha não estiver preenchida, ignora
+    if GridStock.Cells[0, i] = '' then Continue;
+
+    pos := StrToInt(GridStock.Cells[0, i]);
+
+    // TRUQUE: A nossa string é "1 - Matéria-Prima Azul".
+    // A função Copy() vai extrair apenas o 1º carácter (o número 1) e converter para Integer!
+    part := StrToInt(Copy(GridStock.Cells[1, i], 1, 1));
+
+    r := M_Initialize(pos, part); // Manda o comando para o Factory I/O
+    Sleep(1500); // Dá 1.5 segundos para o robô lá colocar a peça
+
+    // Atualiza o nosso "cérebro" a dizer que a peça está lá
+    WAREHOUSE_Parts[pos] := part;
+  end;
+
+  // 3. LER A TABELA DO PLANO DE PRODUÇÃO (A tua interface!)
+  Memo1.Append('A ler o Plano de Produção...');
+
+  // O tamanho do nosso array de ordens passa a ser exatamente o nº de linhas da tabela
+  SetLength(Production_Orders, GridPlano.RowCount - 1);
+
+  for i := 1 to GridPlano.RowCount - 1 do
+  begin
+    if GridPlano.Cells[0, i] = '' then Continue;
+
+    // Traduzir o texto da combobox para os tipos que o programa entende
+    tipoOrdemStr := GridPlano.Cells[0, i];
+    if tipoOrdemStr = 'Produção' then ordem.order_type := Type_Production
+    else if tipoOrdemStr = 'Expedição' then ordem.order_type := Type_Expedition
+    else if tipoOrdemStr = 'Inbound' then ordem.order_type := Type_Delivery;
+
+    // Extrai o ID da peça usando o mesmo truque
+    ordem.part_type := StrToInt(Copy(GridPlano.Cells[1, i], 1, 1));
+    ordem.part_numbers := StrToInt(GridPlano.Cells[2, i]); // Quantidade
+
+    // Guarda no array de ordens (o array começa no índice 0, por isso usamos i-1)
+    Production_Orders[i-1] := ordem;
+  end;
+
+  // 4. PREPARAR AS TAREFAS E ARRANCAR O MOTOR!
+  idx_Task_Executing := 0;
+
+  // Envia as ordens que lemos da grelha para o Scheduler
+  SimpleScheduler(Production_Orders, ShopTasks);
+
+  // Ativa a fábrica
+  Timer1.Enabled := true;
+  Memo1.Append('Fábrica em Automático!');
+end;
 
 
 // get the first position (cell) in AR that contains the "Part"
@@ -696,7 +879,7 @@ begin
            end;
         end;
 
-        // 7. Fazer o LOAD na nova posição (como tu testaste)
+        // 7. Fazer o LOAD na nova posição
         Stage_Load_AR:
         begin
            r := M_Load(part_position_AR);

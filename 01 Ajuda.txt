@@ -20,3 +20,4 @@ Opção B (Recomendada para testes): Moves a criação do plano de produção (a
 7º Dispatcher do Production
 
 Dúvidas: Colocar sequencial como temos? KISS?
+Regras a seguir (ordens)?
