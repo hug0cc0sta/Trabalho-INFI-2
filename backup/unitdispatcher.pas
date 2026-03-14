@@ -626,14 +626,13 @@ var
   r : integer;
   required_raw : integer;
 begin
-  // Passo crucial: Descobrir qual a matéria-prima necessária para o produto final pedido
-  // Códigos: 1=Azul, 2=Verde, 3=Metal(Cinzento)
+  // 1. Descobrir qual a matéria-prima necessária
   case task.part_type of
     Part_Base_Blue, Part_Lid_Blue:   required_raw := Part_Raw_Blue;
     Part_Base_Green, Part_Lid_Green: required_raw := Part_Raw_Green;
     Part_Base_Grey, Part_Lid_Grey:   required_raw := Part_Raw_Grey;
   else
-    required_raw := 0; // Prevenção de erro - inicializar sempre como 0
+    required_raw := 0;
   end;
 
   with task do
@@ -645,7 +644,7 @@ begin
            current_operation := Stage_GetPart;
         end;
 
-        // 1. Procurar a matéria-prima no armazém
+        // 2. Procurar a matéria-prima no armazém
         Stage_GetPart:
         begin
            if (shopfloor.AR_free) then
@@ -656,57 +655,54 @@ begin
            end;
         end;
 
-        // 2. Retirar a matéria-prima para o tapete de saída
+        // 3. Fazer o UNLOAD (como tu testaste)
         Stage_Unload:
         begin
            r := M_Unload(part_position_AR);
-           if (r = 1) then // 1 = Comando válido
+           if (r = 1) then
              current_operation := Stage_To_AR_Out;
         end;
 
-        // 3. Matéria-prima chegou ao tapete, enviar para a máquina
+        // 4. Mandar para PRODUÇÃO (1 ou 2)
         Stage_To_AR_Out:
         begin
-           // Verifica se a matéria prima chegou ao tapete de saída
            if (shopfloor.AR_Out_Part = required_raw) then
            begin
-             // Liberta a posição no nosso array (pois a peça já saiu)
              SET_AR_Position(part_position_AR, 0, WAREHOUSE_Parts);
 
-             // Envia para a máquina correta (Cell 1 ou Cell 2)
              r := M_Do_Production(part_destination);
-             if (r = 1) then // 1 = Comando executado
+             if (r = 1) then
                current_operation := Stage_Wait_Input;
            end;
         end;
 
-        // 4. Esperar que a máquina produza e o produto volte ao armazém
+        // 5. Esperar que a peça final volte
         Stage_Wait_Input:
         begin
-           // O produto volta automaticamente ao tapete de entrada
-           // Vamos verificar se a peça que chegou é o nosso produto final
            if (shopfloor.AR_In_Part = part_type) then
              current_operation := Stage_GetFreePos;
         end;
 
-        // 5. Encontrar posição vazia para guardar o produto final acabado
+        // 6. Procurar um espaço livre (o primeiro 0 que aparecer)
         Stage_GetFreePos:
         begin
            if (shopfloor.AR_free) then
            begin
+
              part_position_AR := GET_AR_Position(0, WAREHOUSE_Parts);
+
              if (part_position_AR > 0) then
                current_operation := Stage_Load_AR;
            end;
         end;
 
-        // 6. Carregar produto final do tapete para a prateleira [cite: 75]
+        // 7. Fazer o LOAD na nova posição (como tu testaste)
         Stage_Load_AR:
         begin
-           r := M_Load(part_position_AR); // [cite: 77]
-           if (r = 1) then // [cite: 81]
+           r := M_Load(part_position_AR);
+           if (r = 1) then
            begin
-             // Atualizar array com a nova peça [cite: 290]
+             // Atualiza o array com a peça nova
              SET_AR_Position(part_position_AR, part_type, WAREHOUSE_Parts);
              current_operation := Stage_Finished;
            end;

@@ -18,3 +18,5 @@ Opção B (Recomendada para testes): Moves a criação do plano de produção (a
 6ª Dispatcher do Inbound
 
 7º Dispatcher do Production
+
+Dúvidas: Colocar sequencial como temos? KISS?
