@@ -1,0 +1,20 @@
+1º Alteração do enumerate TStage acrescentando os novos estados para a produção e para o inbound
+
+2º Alteração do HardCoded da Inicialização do Armazém para o que nos pedem no enunciado
+O SimpleScheduler precisa de ter as ordens prontas no array Production_Orders para as poder converter. Portanto, se o colocares no BInitiatilizeClick, tens duas opções de fluxo lógico:
+
+Opção A (O que estava no teu código base): Programas os botões para que o utilizador tenha primeiro de clicar no BStart (para preencher o Production_Orders) e só depois clicar no BInitiatilize (para inicializar o armazém e correr o SimpleScheduler).
+
+Opção B (Recomendada para testes): Moves a criação do plano de produção (as 7 ordens em hardcode) também para o BInitiatilizeClick, colocando-as antes da chamada do SimpleScheduler. Assim, com um só clique, o armazém arranca, o plano é criado e o scheduler converte logo tudo.
+
+
+
+3º Alteração do procedure TFormDispatcher.BStartClick para o que nos pedem no enunciado
+
+4º Acrescentar no procedure TFormDispatcher.Dispatcher o production e o inbound
+
+5º Adicionar no Public o procedure do inbound e do production
+
+6ª Dispatcher do Inbound
+
+7º Dispatcher do Production

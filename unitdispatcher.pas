@@ -30,7 +30,21 @@ type
   //***************************************
   // Dispatcher Execution
   // Enumerated: defines all stages of TTasks
-  TStage      = (Stage_To_Be_Started = 1, Stage_GetPart, Stage_Unload, Stage_To_AR_Out, Stage_Clear_Pos_AR, Stage_Finished);   //TbC
+  TStage = (
+    Stage_To_Be_Started = 1,
+    Stage_GetPart,
+    Stage_Unload,
+    Stage_To_AR_Out,
+    Stage_Clear_Pos_AR,
+    Stage_Finished,
+
+    // Novos estados para Produção e Inbound:
+    Stage_To_Production,
+    Stage_Wait_Input,
+    Stage_GetFreePos,
+    Stage_Load_AR,
+    Stage_Do_Inbound
+  );
 
   // Data structure for holding one Task (OE, OD, OP)
   TTask = record
@@ -76,6 +90,8 @@ type
   public
     procedure Dispatcher(var tasks:TArray_Task; var idx : integer; shopfloor: TResources );
     procedure Execute_Expedition_Order(var task:TTask; shopfloor: TResources );
+    procedure Execute_Inbound_Order(var task:TTask; shopfloor: TResources ); // INBOUND ADICIONADO
+    procedure Execute_Production_Order(var task:TTask; shopfloor: TResources ); // Production ADICIONADO
     function GET_AR_Position (Part : integer; Warehouse : array of integer): integer;
     procedure SET_AR_Position (idx : integer; Part : integer; var Warehouse : array of integer);
 
@@ -116,9 +132,6 @@ var
 implementation
 
 {$R *.lfm}
-
-
-
 
 
 { Procedure that checks the status of the resources available on the shop floor }
@@ -212,9 +225,56 @@ begin
 
   // ******************************************
   // Simulating the result of the SQL query:
-  SetLength(Production_Orders, 2);                   //Let's create only some Orders to use as an example. STUDENT MUST CHANGE ACCORDING TO REQUIREMENTS
+
+
+  SetLength(Production_Orders, 7);                   //Produções Enunciado
 
   //Expedition
+
+  // 1. Produção de uma tampa cinzenta
+  production_order.order_type   := Type_Production;
+  production_order.part_numbers := 1;
+  production_order.part_type    := Part_Lid_Grey;
+  Production_Orders[0]          := production_order;
+
+  // 2. Produção de uma tampa verde
+  production_order.order_type   := Type_Production;
+  production_order.part_numbers := 1;
+  production_order.part_type    := Part_Lid_Green;
+  Production_Orders[1]          := production_order;
+
+  // 3. Produção de uma base azul
+  production_order.order_type   := Type_Production;
+  production_order.part_numbers := 1;
+  production_order.part_type    := Part_Base_Blue;
+  Production_Orders[2]          := production_order;
+
+  // 4. Expedição de uma tampa verde
+  production_order.order_type   := Type_Expedition;
+  production_order.part_numbers := 1;
+  production_order.part_type    := Part_Lid_Green;
+  Production_Orders[3]          := production_order;
+
+  // 5. Expedição de uma base azul
+  production_order.order_type   := Type_Expedition;
+  production_order.part_numbers := 1;
+  production_order.part_type    := Part_Base_Blue;
+  Production_Orders[4]          := production_order;
+
+  // 6. Inbound de 1 matéria-prima azul
+  production_order.order_type   := Type_Delivery;
+  production_order.part_numbers := 1;
+  production_order.part_type    := Part_Raw_Blue;
+  Production_Orders[5]          := production_order;
+
+  // 7. Inbound de 1 matéria-prima cinzenta
+  production_order.order_type   := Type_Delivery;
+  production_order.part_numbers := 1;
+  production_order.part_type    := Part_Raw_Grey;
+  Production_Orders[6]          := production_order;
+
+  (*
+  //Base
   production_order.order_type   := Type_Expedition ;
   production_order.part_numbers := 2;
   production_order.part_type    := Part_Base_Blue;    //Blue Base
@@ -223,7 +283,7 @@ begin
   production_order.order_type   := Type_Expedition ;  //Expedition
   production_order.part_numbers := 2;
   production_order.part_type    := Part_Lid_Green;    //Green Lids
-  Production_Orders[1]          := production_order;  //Saving..
+  Production_Orders[1]          := production_order;  //Saving..  *)
 
   (*
   production_order.order_type     := Type_Delivery ;    //Inbounds
@@ -281,27 +341,35 @@ begin
   // WAREHOUSE MANAGEMENT
 
   // Initialization of parts in the first column of the warehouse.
-  r := M_Initialize(1, Part_Base_Blue);
+  r := M_Initialize(1, Part_Raw_Blue); // 1 Matéria-prima azul (1) posição 1
   sleep(1500); //sleep de 1 segundo e meio nos inicialize e nos inbounds
-  r := r + M_Initialize(10, Part_Base_Blue);
+
+  r := r + M_Initialize(10, Part_Raw_Green); // 1 Matéria-prima verde (2) posição 10
   sleep(1500);
-  r := r + M_Initialize(19, Part_Lid_Green);
+
+  r := r + M_Initialize(19, Part_Raw_Grey); // 1 Matéria-prima cinzenta (3) posição 19
   sleep(1500);
-  r := r + M_Initialize(28, Part_Lid_Green);
+
+  r := r + M_Initialize(28, Part_Lid_Green); // 1 Tampa verde (8) posição 28
 
   if( r > 4) then
-    Memo1.Append('Innitiatialization with errors');
+    Memo1.Append('Innitiatialization with errors'); //só podem inicializar no máximo 4 coisas
 
 
   //Update the Warehouse according to the previous innitialization
+
+  //Apenas pois o PLC não sabe o que está em cada sítio
   SetLength(WAREHOUSE_Parts, 55);                //Parts in the warehouse   55-1 = 54 to start in 1
+
+  WAREHOUSE_Parts[0] := -1; // Não existe a posição 0
+
   for  cel := 1 to  Length(WAREHOUSE_Parts)-1 do
   begin
       WAREHOUSE_Parts[cel] := 0;
   end;
-  WAREHOUSE_Parts[1]       := Part_Base_Blue;
-  WAREHOUSE_Parts[10]      := Part_Base_Blue;
-  WAREHOUSE_Parts[19]      := Part_Lid_Green;
+  WAREHOUSE_Parts[1]       := Part_Raw_Blue;
+  WAREHOUSE_Parts[10]      := Part_Raw_Green;
+  WAREHOUSE_Parts[19]      := Part_Raw_Grey;
   WAREHOUSE_Parts[28]      := Part_Lid_Green;
 
 
@@ -376,17 +444,33 @@ begin
       // Production
       Type_Production :
       begin
-        //todo
+        if(idx < Length(tasks)) then
+        begin
+          Memo1.Append('Task Production');
+          Execute_Production_Order(tasks[idx], shopfloor);
+
+          // Next Operation to be executed.
+          if(tasks[idx].current_operation = Stage_Finished) then
+            inc(idx_Task_Executing);
+        end;
       end;
 
 
       // Inbound
       Type_Delivery :
       begin
-        //todo
+        if(idx < Length(tasks)) then
+        begin
+          Memo1.Append('Task Inbound');
+          Execute_Inbound_Order(tasks[idx], shopfloor);
+
+          // Next Operation to be executed.
+          if(tasks[idx].current_operation = Stage_Finished) then
+            inc(idx_Task_Executing);
+        end;
       end;
 
-      // Trash
+      // Trash -- NÃO É PARA FAZER !!!
       Type_Trash :
       begin
         //todo
@@ -470,6 +554,171 @@ begin
   end;
 end;
 
+// Procedure que executa a ordem de inbound.
+procedure TFormDispatcher.Execute_Inbound_Order(var task:TTask; shopfloor: TResources );
+var
+  r : integer;
+begin
+  with task do
+  begin
+     case current_operation of
+
+        // 1. Iniciar a tarefa
+        Stage_To_Be_Started:
+        begin
+           current_operation := Stage_Do_Inbound;
+        end;
+
+        // 2. Pedir a matéria-prima vinda do exterior
+        Stage_Do_Inbound:
+        begin
+           Memo1.Append('A pedir Inbound da peça: ' + IntToStr(part_type));
+           r := M_Do_Inbound(part_type); // Envia comando
+
+           if (r = 1) then // 1 = Comando executado corretamente
+             current_operation := Stage_Wait_Input;
+        end;
+
+        // 3. Esperar que a peça chegue ao tapete de entrada do armazém
+        Stage_Wait_Input:
+        begin
+           // O status 4 do vetor de fábrica devolve a peça no tapete de entrada
+           if (shopfloor.AR_In_Part = part_type) then
+             current_operation := Stage_GetFreePos;
+        end;
+
+        // 4. Encontrar uma posição livre (valor 0) no array virtual do armazém
+        Stage_GetFreePos:
+        begin
+           if (shopfloor.AR_free) then // Garantir que o armazém não está ocupado
+           begin
+             part_position_AR := GET_AR_Position(0, WAREHOUSE_Parts); // 0 significa célula vazia
+
+             if (part_position_AR > 0) then
+               current_operation := Stage_Load_AR;
+           end;
+        end;
+
+        // 5. Carregar a peça do tapete para a célula do armazém
+        Stage_Load_AR:
+        begin
+           Memo1.Append('A carregar para posição: ' + IntToStr(part_position_AR));
+           r := M_Load(part_position_AR); //
+
+           if (r = 1) then // 1 = Comando válido
+           begin
+             // Atualizar a nossa memória (array) de que a peça já está na prateleira
+             SET_AR_Position(part_position_AR, part_type, WAREHOUSE_Parts);
+             current_operation := Stage_Finished;
+           end;
+        end;
+
+        Stage_Finished:
+        begin
+           // Fim da tarefa
+        end;
+     end;
+  end;
+end;
+
+procedure TFormDispatcher.Execute_Production_Order(var task:TTask; shopfloor: TResources );
+var
+  r : integer;
+  required_raw : integer;
+begin
+  // Passo crucial: Descobrir qual a matéria-prima necessária para o produto final pedido
+  // Códigos: 1=Azul, 2=Verde, 3=Metal(Cinzento)
+  case task.part_type of
+    Part_Base_Blue, Part_Lid_Blue:   required_raw := Part_Raw_Blue;
+    Part_Base_Green, Part_Lid_Green: required_raw := Part_Raw_Green;
+    Part_Base_Grey, Part_Lid_Grey:   required_raw := Part_Raw_Grey;
+  else
+    required_raw := 0; // Prevenção de erro - inicializar sempre como 0
+  end;
+
+  with task do
+  begin
+     case current_operation of
+
+        Stage_To_Be_Started:
+        begin
+           current_operation := Stage_GetPart;
+        end;
+
+        // 1. Procurar a matéria-prima no armazém
+        Stage_GetPart:
+        begin
+           if (shopfloor.AR_free) then
+           begin
+             part_position_AR := GET_AR_Position(required_raw, WAREHOUSE_Parts);
+             if (part_position_AR > 0) then
+               current_operation := Stage_Unload;
+           end;
+        end;
+
+        // 2. Retirar a matéria-prima para o tapete de saída
+        Stage_Unload:
+        begin
+           r := M_Unload(part_position_AR);
+           if (r = 1) then // 1 = Comando válido
+             current_operation := Stage_To_AR_Out;
+        end;
+
+        // 3. Matéria-prima chegou ao tapete, enviar para a máquina
+        Stage_To_AR_Out:
+        begin
+          // Verifica se a matéria prima chegou ao tapete de saída
+           if (shopfloor.AR_Out_Part = required_raw) then
+           begin
+             // Liberta a posição no nosso array (pois a peça já saiu)
+             SET_AR_Position(part_position_AR, 99, WAREHOUSE_Parts);
+             // Envia para a máquina correta (Cell 1 ou Cell 2)
+             r := M_Do_Production(part_destination);
+             if (r = 1) then // 1 = Comando executado
+               current_operation := Stage_Wait_Input;
+           end;
+        end;
+
+        // 4. Esperar que a máquina produza e o produto volte ao armazém
+        Stage_Wait_Input:
+        begin
+           // O produto volta automaticamente ao tapete de entrada
+           // Vamos verificar se a peça que chegou é o nosso produto final
+           if (shopfloor.AR_In_Part = part_type) then
+             current_operation := Stage_GetFreePos;
+        end;
+
+        // 5. Encontrar posição vazia para guardar o produto final acabado
+        Stage_GetFreePos:
+        begin
+           if (shopfloor.AR_free) then
+           begin
+             part_position_AR := GET_AR_Position(0, WAREHOUSE_Parts);
+             if (part_position_AR > 0) then
+               current_operation := Stage_Load_AR;
+           end;
+        end;
+
+        // 6. Carregar produto final do tapete para a prateleira [cite: 75]
+        Stage_Load_AR:
+        begin
+           r := M_Load(part_position_AR); // [cite: 77]
+           if (r = 1) then // [cite: 81]
+           begin
+             // Atualizar array com a nova peça [cite: 290]
+             SET_AR_Position(part_position_AR, part_type, WAREHOUSE_Parts);
+             current_operation := Stage_Finished;
+           end;
+        end;
+
+        Stage_Finished:
+        begin
+          // Fim da tarefa
+        end;
+
+     end;
+  end;
+end;
 
 
 
