@@ -205,13 +205,11 @@ begin
 
         part_position_AR  := -1;  // to be defined later.   STUDENTS MUST CHANGE
 
-        if( part_type < Part_Lid_Blue )then
-        begin
-             part_destination  := 1;     // if bases (Exit 1 or Cell 1)
-        end else
-        begin
-            part_destination  := 2;     // if bases (Exit 2 or Cell 2)
-        end;
+        // Se a peça for uma Base (4,5,6) ou Raw para Base
+        if (part_type <= 6) then
+             part_destination := 1
+        else
+             part_destination := 2; // Tampas e Raw para Tampas
 
         //Create  orders[idx_order].part_numbers of the same TTask for Dispatcher.
         numb_tasks_total :=  Length(tasks);
@@ -240,7 +238,7 @@ begin
   // *******************************************
 
 
-  { ===== INÍCIO DO HARDCODE (Comentado) =====
+  { ===== INÍCIO DO HARDCODE =====
   // ******************************************
   // Simulating the result of the SQL query:
 
@@ -549,6 +547,11 @@ begin
     // Extrai o ID da peça usando o mesmo truque
     ordem.part_type := StrToInt(Copy(GridPlano.Cells[1, i], 1, 1));
     ordem.part_numbers := StrToInt(GridPlano.Cells[2, i]); // Quantidade
+
+    // Se for Base (4,5,6) vai para o destino 1. Se for Tampa (7,8,9) vai para o 2.
+    if (ordem.part_type >= 4) and (ordem.part_type <= 6) then
+       // Destino 1 (Exit 1 / Cell 1)
+       // Nota: Este campo será usado pelo SimpleScheduler para preencher o part_destination da Task
 
     // Guarda no array de ordens (o array começa no índice 0, por isso usamos i-1)
     Production_Orders[i-1] := ordem;

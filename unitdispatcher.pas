@@ -240,7 +240,7 @@ begin
   // *******************************************
 
 
-  { ===== INÍCIO DO HARDCODE (Comentado) =====
+  { ===== INÍCIO DO HARDCODE =====
   // ******************************************
   // Simulating the result of the SQL query:
 
@@ -549,6 +549,11 @@ begin
     // Extrai o ID da peça usando o mesmo truque
     ordem.part_type := StrToInt(Copy(GridPlano.Cells[1, i], 1, 1));
     ordem.part_numbers := StrToInt(GridPlano.Cells[2, i]); // Quantidade
+
+    // Se for Base (4,5,6) vai para o destino 1. Se for Tampa (7,8,9) vai para o 2.
+    if (ordem.part_type >= 4) and (ordem.part_type <= 6) then
+       // Destino 1 (Exit 1 / Cell 1)
+       // Nota: Este campo será usado pelo SimpleScheduler para preencher o part_destination da Task
 
     // Guarda no array de ordens (o array começa no índice 0, por isso usamos i-1)
     Production_Orders[i-1] := ordem;
